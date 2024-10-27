@@ -14,4 +14,11 @@ Then run `sudo ./target/release/SNTPing` to start pinging!
 
 You can configure this project to use less network capacity if you so wish. 
 This can be done at in [`network.rs`](/src/network.rs)
-To adjust network usage you should adjust `
+To adjust network usage you should adjust `SLEEP_PER_CYCLE` first, since that will also reduce CPU utilization, while the `nops` way of waiting does not.
+
+
+## What does the current image map look like?
+
+![alt text](https://github.com/fish-o/snt-ping-template/blob/main/map.png?raw=true)
+
+Isn't it beutiful?
