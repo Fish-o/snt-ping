@@ -1,25 +1,8 @@
-/*
+// CHANGE THESE TO LIMIT NETWORK USAGE
+const SLEEP_PER_CYCLE: Option<Duration> = Some(Duration::from_millis(100));
+const SLEEP_PER_PIXEL: Option<Duration> = None; // Only change this if SLEEP_PER_CYCLE isn't enough.
 
-    All values are in hexadecimal notation. And the resolution of the screen is 1920x1080 pixels.
 
-    Example: to make the pixel at (25,25) SNT Yellow (#FFD100) with 100% opacity, execute the following command:
-          2001:610:1908:a000: <X>  : <Y>  : <B><G> : <R><A>
-    ping6 2001:610:1908:a000: 0019 : 0019 : 00d1   : ffff
-                              16 bits
-    0x19 -> 16 + 9 = 25
-
-    1 2 3 4  5  6  7   8   9   10   11
-    2 4 8 16 32 64 128 256 512 1024 2028
-    64 bits
-
-    0(+11)      11(+11)      22(+8)   30(+8)   38(+8)   46(+18)             64
-    XXXXXXXXXXX YYYYYYYYYYY  RRRRRRRR GGGGGGGG BBBBBBBB OOOOOOOOOOOOOOOOOO
-                                                        ^^ Compleet ongebruikte data!
-*/
-
-use core::time;
-use image::{DynamicImage, GenericImageView, ImageReader, Pixels, Rgba};
-use pnet::packet::PacketSize;
 use pnet::transport::TransportChannelType::Layer4;
 use pnet::transport::TransportProtocol::Ipv6;
 use pnet::{
@@ -31,7 +14,6 @@ use pnet::{
     transport::{transport_channel, TransportSender},
     util,
 };
-use std::process::exit;
 use std::sync::{Arc, Mutex};
 
 use std::net::IpAddr;
@@ -107,6 +89,10 @@ impl Task {
         let data_pixels = self.data_pixels.lock().unwrap();
         let len = data_pixels.len();
         for p in data_pixels.iter() {
+            match SLEEP_PER_PIXEL {
+                Some(dur) => thread::sleep(dur),
+                _ => {}
+            }
             write_pixel(tx, p, &self.get_colored_pixel(p), 1, &mut time_wasted);
         }
         (time_wasted, len)
@@ -114,46 +100,59 @@ impl Task {
 }
 
 fn main() -> Result<(), std::io::Error> {
-    println!("Hello! Im going to be sending pings!");
-    println!("Let me open up the image real quick...");
-    println!("Cool! The image looks good! Let me parse it into a task!");
+    println!("[MAIN] Hello! Cool to see you helping out for this rightous cause!");
+    println!("[MAIN] Starting up...");
     let mut task = Task::blank();
+    println!("[MAIN] Starting the sync thread...");
     let t = task.start_synchronizing();
-
-    println!("Loading pixels....");
-
-    println!(
-        "Alright, done, i counted {} pixels with color data!",
-        task.data_pixels.lock().unwrap().len()
-    );
-    println!("\nNext up: setting up a socket...");
+    println!("[NET]  Creating IPV6 socket");
     let mut txv6 = create_tx();
-    println!("Socket made! Im ready to rock!");
     loop {
         let now = std::time::Instant::now();
-        let mut tot_time: u64 = 0;
-        let (time, pixels) = task.print_once(&mut txv6);
-        tot_time += time;
+        let (wasted_time, pixels) = task.print_once(&mut txv6);
+        if pixels == 0 {
+            println!("[NET]  No pixels yet, waiting for data..");
+            thread::sleep(Duration::from_millis(500));
+            continue;
+        }
         let elapsed = now.elapsed();
-        let bandwidth = (pixels*70*8)  as f64 / elapsed.as_secs_f64();
+        let bandwidth = (pixels * 70 * 8) as f64 / elapsed.as_secs_f64();
         let mbps = bandwidth / 1000_000f64;
+        let avg_mbps = match SLEEP_PER_CYCLE {
+            Some(dur) =>format!("(Avg: {:.1} Mbps)",  ((pixels * 70 * 8) as f64 / (elapsed+dur).as_secs_f64())/1000_000f64),
+            _=>format!("")
+        };
+        let pixels = if pixels >= 1000 {
+            format!("{}k", pixels/1000)
+        } else{
+            format!("{pixels}")
+        };
         println!(
-            "One write done {:.3?} (wasted {:.3}s). {pixels} Pixels (estimated {mbps:.1} Mbps)",
+            "[NET]  One full write done in {:.1?}   Net bottleneck: {:.0}%   Pixels: {pixels}   {mbps:.1} Mbps {avg_mbps}",
             elapsed,
-            tot_time as f64 / 1000.0
+             (wasted_time as f64 / elapsed.as_millis() as f64) * 100f64 
         );
-        thread::sleep(Duration::from_millis(50));
+        match SLEEP_PER_CYCLE {
+            Some(dur) => thread::sleep(dur),
+            _ => {}
+        }
     }
-    // write_pixel(&mut txv6, &Pixel::new(25, 25), &Color::from_hex("FFD100"));
-    println!("Done");
+
+    println!("[MAIN] Waiting for sync thead to join.");
     t.join().expect("Joining sync_thread failed");
+    println!("[MAIN] Exiting");
     Ok(())
 }
 
+const SOCKET_ERR: &str = "Run this program with root permissions";
 fn create_tx() -> TransportSender {
     let protocolv6 = Layer4(Ipv6(IpNextHeaderProtocols::Icmpv6));
-    let (txv6, _) = transport_channel(4096, protocolv6)
-        .expect("Could not create IPv6 socket. Are the permissions correct?");
+
+    let (txv6, _) = transport_channel(4096, protocolv6).expect(&format!(
+        "Could not create IPv6 socket. \n\n\n      {}\n====> {SOCKET_ERR} <====\n      {}\nIt needs root permissions to create a raw IPV6 socket, it wont hack you pinky promise <3\n\n",
+        "▼".repeat(SOCKET_ERR.len()),
+        "▲".repeat(SOCKET_ERR.len())
+    ));
     return txv6;
 }
 fn write_pixel(
