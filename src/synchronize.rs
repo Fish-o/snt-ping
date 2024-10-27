@@ -15,8 +15,8 @@ use std::{io, mem, thread};
 // Dont change these, they should be fine like this.
 // You want to make sure the clients remain synchronized
 const RESYNC_EVERY: Duration = Duration::from_secs(10 * 60);
-const RAND_OFFSET: Duration = Duration::from_secs(0);
-const RESYNC_SILENCE: Duration = Duration::from_secs(1);
+const RAND_OFFSET: Duration = Duration::from_secs(30);
+const RESYNC_SILENCE: Duration = Duration::from_secs(3);
 
 const MAP_FILE_NAME: &str = "download.png";
 pub fn download_new_file(data_pixels: &Arc<Mutex<Vec<Pixel>>>) {
