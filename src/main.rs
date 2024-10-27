@@ -102,13 +102,14 @@ impl Task {
         let map = self.map.lock().expect("Could not aquire mutex");
         map[p.0 as usize][p.1 as usize].expect("Data pixel must contain a color")
     }
-    fn print_once(&self, tx: &mut TransportSender) -> u64 {
+    fn print_once(&self, tx: &mut TransportSender) -> (u64, usize) {
         let mut time_wasted: u64 = 0;
         let data_pixels = self.data_pixels.lock().unwrap();
+        let len = data_pixels.len();
         for p in data_pixels.iter() {
             write_pixel(tx, p, &self.get_colored_pixel(p), 1, &mut time_wasted);
         }
-        time_wasted
+        (time_wasted, len)
     }
 }
 
@@ -129,14 +130,15 @@ fn main() -> Result<(), std::io::Error> {
     let mut txv6 = create_tx();
     println!("Socket made! Im ready to rock!");
     loop {
-        println!("\nWriting all pixels once:");
         let now = std::time::Instant::now();
         let mut tot_time: u64 = 0;
-        let time: u64 = task.print_once(&mut txv6);
+        let (time, pixels) = task.print_once(&mut txv6);
         tot_time += time;
         let elapsed = now.elapsed();
+        let bandwidth = (pixels*70*8)  as f64 / elapsed.as_secs_f64();
+        let mbps = bandwidth / 1000_000f64;
         println!(
-            "Wow, that was a lot of work! it took: {:?} (out of which {} s was wasted)",
+            "One write done {:.3?} (wasted {:.3}s). {pixels} Pixels (estimated {mbps:.1} Mbps)",
             elapsed,
             tot_time as f64 / 1000.0
         );
