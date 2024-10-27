@@ -15,7 +15,7 @@ fn main() -> Result<(), std::io::Error> {
     println!("[MAIN] Creating the network loop...");
     start_network_loop(&mut task);
 
-    // This should theoretically be unreachable
+    // This should theoretically be unreachable.
     println!("[MAIN] Waiting for sync thead to join.");
     t.join().expect("Joining sync_thread failed");
     println!("[MAIN] Exiting");

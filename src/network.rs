@@ -1,11 +1,21 @@
+
+// You're looking at the source code! To make sure
+// you do not get scared, make sure to not look below
+// the "ONLY CODE BELOW" line.
+
 const SLEEP_PER_CYCLE: Option<Duration> = Some(Duration::from_millis(100));
 
-// Unless really needed, you should use SLEEP_PER_CYCLE, since it does not busy wait.
-// Uncomment the macro, and comment the other one, to add a delay per pixel.
+// Unless really needed, you should not use nops, since it busy waits.
+// Uncomment the 'nops' macro, and comment the other one, to add a delay per pixel.
 // You can add more nops to make it slower, or remove them to speed it up.
 
 // macro_rules! nops {() =>{ asm!("nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop");}}
 macro_rules! nops {() =>{}}
+
+
+/*
+    v-v-v-v-v-v-v-v-v ONLY CODE BELOW v-v-v-v-v-v-v-v-v
+*/
 
 use pnet::transport::TransportChannelType::Layer4;
 use pnet::transport::TransportProtocol::Ipv6;
@@ -18,7 +28,7 @@ use pnet::{
     transport::{transport_channel,TransportSender},
     util,
 };
-
+#[allow(unused_imports)]
 use std::arch::asm;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -30,8 +40,7 @@ use crate::Task;
 
 macro_rules! nops2 {() => {nops!();nops!();nops!();nops!();nops!();nops!();nops!();nops!();nops!();nops!();}}
 macro_rules! nops3 {() => {nops2!();nops2!();nops2!();nops2!();nops2!();nops2!();nops2!();nops2!();nops2!();nops2!();}}
-macro_rules! nop_sleep {() => {unsafe{nops3!();nops3!();nops3!();nops3!();nops3!();nops3!();nops3!();nops3!();nops3!();nops3!();}}}
-
+macro_rules! nop_sleep {() => {#[allow(unused_unsafe)] unsafe{nops3!();nops3!();nops3!();nops3!();nops3!();nops3!();nops3!();nops3!();nops3!();nops3!();}}}
   
 impl Task{
     fn print_once(&self,tx: &mut TransportSender) -> (u64,usize) {
