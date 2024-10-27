@@ -1,4 +1,5 @@
-use crate::{create_empty_map_on_heap, Color, HeapMap, Pixel, Task};
+use crate::utils::{create_empty_map_on_heap, Color, HeapMap, Pixel};
+use crate::Task;
 use chrono::{Local, Timelike};
 use image::EncodableLayout;
 use image::{GenericImageView, ImageReader};
@@ -32,6 +33,8 @@ pub fn download_new_file(data_pixels: &Arc<Mutex<Vec<Pixel>>>) {
         lock.len()
     );
 }
+
+
 pub fn synchronize(data_pixels_arc: &Arc<Mutex<Vec<Pixel>>>, map_arc: &Arc<Mutex<HeapMap>>) {
     let img = ImageReader::open(MAP_FILE_NAME)
         .expect("Opening the map image failed :(")
@@ -61,6 +64,8 @@ pub fn synchronize(data_pixels_arc: &Arc<Mutex<Vec<Pixel>>>, map_arc: &Arc<Mutex
     mem::swap(&mut new_data_pixels, &mut data_pixels);
     println!("[SYNC] Loaded new data into the task!");
 }
+
+
 impl Task {
     pub fn start_synchronizing(&mut self) -> JoinHandle<()> {
         let data_pixels_arc: Arc<Mutex<Vec<Pixel>>> = Arc::clone(&self.data_pixels);
