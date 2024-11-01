@@ -3,14 +3,14 @@
 // you do not get scared, make sure to not look below
 // the "ONLY CODE BELOW" line.
 
-const SLEEP_PER_CYCLE: Option<Duration> = Some(Duration::from_millis(100));
+const SLEEP_PER_CYCLE: Option<Duration> = Some(Duration::from_millis(0));
 
 // Unless really needed, you should not use nops, since it busy waits.
 // Uncomment the 'nops' macro, and comment the other one, to add a delay per pixel.
 // You can add more nops to make it slower, or remove them to speed it up.
 
-// macro_rules! nops {() =>{ asm!("nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop");}}
-macro_rules! nops {() =>{}}
+macro_rules! nops {() =>{ asm!("nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop","nop");}}
+// macro_rules! nops {() =>{}}
 
 
 /*
@@ -45,12 +45,17 @@ macro_rules! nop_sleep {() => {#[allow(unused_unsafe)] unsafe{nops3!();nops3!();
 impl Task{
     fn print_once(&self,tx: &mut TransportSender) -> (u64,usize) {
         let mut time_wasted: u64 = 0;
+        // println!("[NET]  Data_pixels lock... ");
         let data_pixels = self.data_pixels.lock().unwrap();
-        let len = data_pixels.len();
+            let map = self.map.lock().expect("Could not aquire mutex");
+            let len = data_pixels.len();
+        // println!("[NET]  Looping:");
         for p in data_pixels.iter() {
-            nop_sleep!();
-            write_pixel(tx,p,&self.get_colored_pixel(p),1,&mut time_wasted);
-        }
+            write_pixel(tx,p,&map[p.0 as usize][p.1 as usize].expect("Data pixel must contain a color"),1,&mut time_wasted);
+       
+          
+         }
+        // println!("[NET]  Done looping");
         (time_wasted,len)
     }
 }
@@ -58,6 +63,7 @@ pub fn start_network_loop(task: &mut Task){
     println!("[NET]  Creating IPV6 socket");
     let mut txv6 = create_tx();
     loop {
+        println!("[NET]  Printing once ");
         let now = std::time::Instant::now();
         let (wasted_time,pixels) = task.print_once(&mut txv6);
         if pixels == 0 {
@@ -65,7 +71,7 @@ pub fn start_network_loop(task: &mut Task){
             sleep(Duration::from_millis(500));
             continue;
         }
-        let elapsed = now.elapsed();
+            let elapsed = now.elapsed();
         let bandwidth = (pixels * 70 * 8) as f64 / elapsed.as_secs_f64();
         let mbps = bandwidth / 1000_000f64;
         let avg_mbps = match SLEEP_PER_CYCLE {
@@ -118,9 +124,11 @@ pub fn write_pixel(
     let ip_str = format!("2001:610:1908:a000:{x:04x}:{y:04x}:{b:02x}{g:02x}:{r:02x}{a:02x}");
     let ipv6 = IpAddr::from_str(&ip_str).unwrap();
     match send_echov6(tx,ipv6) {
-        Err(_) => {
-            let t = 1u64.pow(attempt);
-            // println!("{x},{y} Faild attempt #{attempt},sleeping ({t} ms),reason for failure: {e}");
+        Err(e) => {
+            let t = 2u64.pow(attempt);
+            if t > 300 {
+                println!("{x},{y} Failed attempt #{attempt},sleeping ({t} ms),reason for failure: {e}");
+            }
             sleep(Duration::from_millis(t));
             *time_wasted += t;
             write_pixel(tx,p,c,attempt + 1,time_wasted);
@@ -136,7 +144,6 @@ fn send_echov6(tx: &mut TransportSender,addr: IpAddr) -> Result<usize,std::io::E
     // Use echo_request so we can set the identifier and sequence number
     let mut echo_packet = MutableIcmpv6Packet::new(&mut vec[..]).unwrap();
     echo_packet.set_icmpv6_type(Icmpv6Types::EchoRequest);
-
     let csum = icmpv6_checksum(&echo_packet);
     echo_packet.set_checksum(csum);
 

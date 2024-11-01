@@ -62,8 +62,4 @@ impl Task {
             data_pixels: Arc::new(Mutex::new(vec![])),
         }
     }
-    pub fn get_colored_pixel(&self, p: &Pixel) -> Color {
-        let map = self.map.lock().expect("Could not aquire mutex");
-        map[p.0 as usize][p.1 as usize].expect("Data pixel must contain a color")
-    }
 }
