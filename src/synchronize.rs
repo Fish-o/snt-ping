@@ -71,7 +71,7 @@ impl Task {
             println!("[SYNC] Sync thread made");
             thread::sleep(Duration::from_millis(100));
             loop {
-                // download_new_file(&data_pixels_arc);
+                download_new_file(&data_pixels_arc);
                 synchronize(&data_pixels_arc, &map_arc);
                 let now = Local::now();
 
